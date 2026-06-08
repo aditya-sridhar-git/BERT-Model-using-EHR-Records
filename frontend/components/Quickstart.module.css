@@ -1,0 +1,69 @@
+.codeBlock {
+  margin-top: 48px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+  background: rgba(236, 72, 153, 0.08);
+}
+
+.tabActive {
+  color: var(--text-primary) !important;
+  background: rgba(236, 72, 153, 0.15) !important;
+  border-color: rgba(236, 72, 153, 0.3) !important;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(236, 72, 153, 0.05);
+  border: 1px solid rgba(236, 72, 153, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+}
+
+.copyBtn:hover {
+  color: var(--text-primary);
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.code {
+  overflow-x: auto;
+}
+
+.code pre {
+  margin: 0 !important;
+}
