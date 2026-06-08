@@ -171,6 +171,7 @@ def predict_batch(df) -> list:
 
     all_preds = []
     all_confs = []
+    all_readmit_probs = []
 
     for start in range(0, len(texts), BATCH_SIZE):
         batch_texts  = texts[start : start + BATCH_SIZE]
@@ -200,20 +201,25 @@ def predict_batch(df) -> list:
 
             all_preds.append(pred)
             all_confs.append(round(raw_conf, 2))
+            # readmission_probability: the actual P(readmission) on a 0–100 scale
+            all_readmit_probs.append(round(hybrid_p * 100, 2))
 
     results = []
-    for row, pred, confidence in zip(rows, all_preds, all_confs):
+    for row, pred, confidence, readmit_prob in zip(rows, all_preds, all_confs, all_readmit_probs):
         results.append({
-            "admission_id":      str(row.get("admission_id", "N/A")),
-            "patient_id":        str(row.get("patient_id",  "N/A")),
-            "primary_diagnosis": str(row.get("primary_diagnosis", "N/A")),
-            "age":               str(row.get("age",  "N/A")),
-            "gender":            str(row.get("gender", "N/A")),
-            "length_of_stay":    str(row.get("length_of_stay", "N/A")),
-            "severity_level":    str(row.get("severity_level", "N/A")),
-            "prediction":        "Readmitted" if pred == 1 else "Not Readmitted",
-            "confidence":        confidence,
-            "actual":            "Readmitted" if str(row.get("readmitted_30_days", "0")) == "1" else "Not Readmitted",
+            "admission_id":             str(row.get("admission_id", "N/A")),
+            "patient_id":               str(row.get("patient_id",  "N/A")),
+            "primary_diagnosis":        str(row.get("primary_diagnosis", "N/A")),
+            "age":                      str(row.get("age",  "N/A")),
+            "gender":                   str(row.get("gender", "N/A")),
+            "length_of_stay":           str(row.get("length_of_stay", "N/A")),
+            "severity_level":           str(row.get("severity_level", "N/A")),
+            "prediction":               "Readmitted" if pred == 1 else "Not Readmitted",
+            "confidence":               confidence,
+            "readmission_probability":  readmit_prob,   # 0–100, actual P(readmission)
+            "actual":                   "Readmitted" if str(row.get("readmitted_30_days", "0")) == "1" else "Not Readmitted",
         })
 
+    # Sort by readmission probability descending — highest-risk patients first
+    results.sort(key=lambda r: r["readmission_probability"], reverse=True)
     return results

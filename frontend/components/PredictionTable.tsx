@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
@@ -15,6 +15,9 @@ import {
   XCircle,
   BarChart3,
   Network,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 import KnowledgeGraph from "./KnowledgeGraph";
 
@@ -28,6 +31,7 @@ type Prediction = {
   severity_level: string;
   prediction: string;
   confidence: number;
+  readmission_probability: number;
 };
 
 type Summary = {
@@ -45,6 +49,8 @@ export default function PredictionTable() {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Prediction | null>(null);
+  const [sortBy, setSortBy] = useState<"readmission_probability" | "confidence">("readmission_probability");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -96,6 +102,37 @@ export default function PredictionTable() {
       case "moderate": return "#eab308";
       case "low":      return "#22c55e";
       default:         return "var(--text-muted)";
+    }
+  };
+
+  const getRiskColor = (prob: number) => {
+    if (prob >= 70) return "#ef4444";
+    if (prob >= 50) return "#f97316";
+    if (prob >= 35) return "#eab308";
+    return "#22c55e";
+  };
+
+  const getRiskLabel = (prob: number) => {
+    if (prob >= 70) return "High";
+    if (prob >= 50) return "Elevated";
+    if (prob >= 35) return "Moderate";
+    return "Low";
+  };
+
+  const sortedPredictions = useMemo(() => {
+    return [...predictions].sort((a, b) => {
+      const valA = a[sortBy];
+      const valB = b[sortBy];
+      return sortDir === "desc" ? valB - valA : valA - valB;
+    });
+  }, [predictions, sortBy, sortDir]);
+
+  const handleSort = (col: "readmission_probability" | "confidence") => {
+    if (sortBy === col) {
+      setSortDir(d => d === "desc" ? "asc" : "desc");
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
     }
   };
 
@@ -480,6 +517,8 @@ export default function PredictionTable() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 12,
                     background: "rgba(236, 72, 153, 0.04)",
                   }}
                 >
@@ -493,15 +532,50 @@ export default function PredictionTable() {
                   >
                     Patient Results
                   </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: "var(--text-muted)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {predictions.length} records
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Sort by:</span>
+                    {(["readmission_probability", "confidence"] as const).map((col) => (
+                      <button
+                        key={col}
+                        onClick={() => handleSort(col)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          padding: "5px 12px",
+                          borderRadius: 100,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          border: sortBy === col
+                            ? "1px solid rgba(236,72,153,0.5)"
+                            : "1px solid var(--border-subtle)",
+                          background: sortBy === col
+                            ? "rgba(236,72,153,0.12)"
+                            : "transparent",
+                          color: sortBy === col
+                            ? "var(--accent-violet)"
+                            : "var(--text-muted)",
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        {sortBy === col
+                          ? (sortDir === "desc" ? <ArrowDown size={11} /> : <ArrowUp size={11} />)
+                          : <ArrowUpDown size={11} />}
+                        {col === "readmission_probability" ? "Readmission Risk" : "Confidence"}
+                      </button>
+                    ))}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--text-muted)",
+                        fontFamily: "var(--font-mono)",
+                        marginLeft: 4,
+                      }}
+                    >
+                      {predictions.length} records
+                    </span>
+                  </div>
                 </div>
 
                 {/* Table */}
@@ -516,17 +590,23 @@ export default function PredictionTable() {
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                         {[
+                          "#",
                           "Patient ID",
                           "Age / Gender",
                           "Primary Diagnosis",
                           "Stay",
                           "Severity",
                           "Prediction",
+                          "Readmission Risk",
                           "Confidence",
                           "",
                         ].map((h, hi) => (
                           <th
                             key={hi}
+                            onClick={() => {
+                              if (h === "Readmission Risk") handleSort("readmission_probability");
+                              if (h === "Confidence") handleSort("confidence");
+                            }}
                             style={{
                               padding: "12px 16px",
                               textAlign: "left",
@@ -534,8 +614,13 @@ export default function PredictionTable() {
                               fontSize: 11,
                               textTransform: "uppercase",
                               letterSpacing: "0.06em",
-                              color: "var(--text-muted)",
+                              color: (h === "Readmission Risk" && sortBy === "readmission_probability") ||
+                                     (h === "Confidence" && sortBy === "confidence")
+                                ? "var(--accent-violet)"
+                                : "var(--text-muted)",
                               whiteSpace: "nowrap",
+                              cursor: h === "Readmission Risk" || h === "Confidence" ? "pointer" : "default",
+                              userSelect: "none",
                             }}
                           >
                             {h}
@@ -544,7 +629,7 @@ export default function PredictionTable() {
                       </tr>
                     </thead>
                     <tbody>
-                      {predictions.map((p, i) => (
+                      {sortedPredictions.map((p, i) => (
                         <tr
                           key={`row-${i}`}
                           style={{
@@ -568,6 +653,34 @@ export default function PredictionTable() {
                           }
                           onClick={() => setSelectedPatient(p)}
                         >
+                          {/* Rank badge */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: 28,
+                                height: 28,
+                                borderRadius: "50%",
+                                background: i === 0
+                                  ? "linear-gradient(135deg, #ef4444, #f97316)"
+                                  : i === 1
+                                  ? "linear-gradient(135deg, #f97316, #eab308)"
+                                  : i === 2
+                                  ? "linear-gradient(135deg, #eab308, #84cc16)"
+                                  : "rgba(148,163,184,0.12)",
+                                color: i < 3 ? "#fff" : "var(--text-muted)",
+                                fontFamily: "var(--font-mono)",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {i + 1}
+                            </span>
+                          </td>
+
                           {/* Patient ID */}
                           <td style={{ padding: "14px 16px" }}>
                             <span
@@ -687,6 +800,60 @@ export default function PredictionTable() {
                               )}
                               {p.prediction}
                             </span>
+                          </td>
+
+                          {/* Readmission Risk probability */}
+                          <td style={{ padding: "14px 16px", minWidth: 160 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.04em",
+                                    color: getRiskColor(p.readmission_probability),
+                                  }}
+                                >
+                                  {getRiskLabel(p.readmission_probability)}
+                                </span>
+                                <span
+                                  style={{
+                                    fontFamily: "var(--font-mono)",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: getRiskColor(p.readmission_probability),
+                                  }}
+                                >
+                                  {p.readmission_probability.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div
+                                style={{
+                                  width: "100%",
+                                  height: 7,
+                                  borderRadius: 4,
+                                  background: "rgba(148,163,184,0.15)",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${p.readmission_probability}%`,
+                                    height: "100%",
+                                    borderRadius: 4,
+                                    background: p.readmission_probability >= 70
+                                      ? "linear-gradient(90deg, #f97316, #ef4444)"
+                                      : p.readmission_probability >= 50
+                                      ? "linear-gradient(90deg, #eab308, #f97316)"
+                                      : p.readmission_probability >= 35
+                                      ? "linear-gradient(90deg, #84cc16, #eab308)"
+                                      : "linear-gradient(90deg, #22c55e, #84cc16)",
+                                    transition: "width 0.7s ease",
+                                  }}
+                                />
+                              </div>
+                            </div>
                           </td>
 
                           {/* Confidence */}
